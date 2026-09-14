@@ -1,4 +1,4 @@
-name: Public frontend dependency bundle
+name: Exact Mviringo PHP dependency bundle
 on:
   push:
     branches: [build/php-vue-dependencies]
@@ -9,27 +9,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Prepare public frontend dependencies
+      - name: Build exact public PHP dependencies
         shell: bash
         run: |
-          mkdir -p out/dependencies/node
-          cd out/dependencies/node
-          cat > package.json <<'JSON'
-          {"name":"public-web-build-dependencies","private":true,"type":"module","dependencies":{"vue":"^3.5.0","vue-router":"^4.5.0","@inertiajs/vue3":"^2.0.0","react":"18.3.1","react-dom":"18.3.1","react-router-dom":"^6.30.2","lucide-react":"0.439.0","lucide-vue-next":"0.439.0"},"devDependencies":{"vite":"^6.1.0","@vitejs/plugin-vue":"^5.2.0","@vitejs/plugin-react":"^4.3.0","typescript":"^5.8.0","vue-tsc":"^2.2.0","laravel-vite-plugin":"^1.2.0","@babel/core":"^7.27.0","@babel/plugin-transform-react-jsx":"^7.27.1","@babel/parser":"^7.27.0","@babel/traverse":"^7.27.0","@babel/generator":"^7.27.0","@vue/babel-plugin-jsx":"^1.4.0"}}
+          set -eux
+          mkdir -p out/php
+          cd out/php
+          cat > composer.json <<'JSON'
+          {"name":"build/mviringo-runtime","type":"project","require":{"php":"^8.3","laravel/framework":"13.29.0","inertiajs/inertia-laravel":"2.0.27"},"config":{"platform":{"php":"8.3.0"},"allow-plugins":false,"sort-packages":true},"minimum-stability":"stable","prefer-stable":true}
           JSON
-          npm install --ignore-scripts --no-fund --no-audit
-          npm audit --omit=dev --json > audit.json || true
-          node --version > node-version.txt
-          cd ../..
-          tar czf node-dependencies.tar.gz dependencies/node
-          sha256sum node-dependencies.tar.gz > SHA256SUMS
-          node -e "const a=JSON.parse(require('fs').readFileSync('dependencies/node/audit.json'));if(a.error || (a.metadata?.vulnerabilities?.high||0)+(a.metadata?.vulnerabilities?.critical||0)>0) process.exit(1)"
-      - name: Upload dependencies for local verification
+          composer install --no-dev --prefer-dist --no-scripts --no-interaction --optimize-autoloader
+          composer show --format=json > dependency-versions.json
+          composer audit --no-dev --format=json > audit.json || true
+          php -r "require 'vendor/autoload.php'; echo Composer\\InstalledVersions::getPrettyVersion('laravel/framework'), PHP_EOL; echo Composer\\InstalledVersions::getPrettyVersion('inertiajs/inertia-laravel'), PHP_EOL;" > versions.txt
+          cd ..
+          tar czf mviringo-php-runtime-laravel-13.29.0.tar.gz php
+          sha256sum mviringo-php-runtime-laravel-13.29.0.tar.gz > SHA256SUMS
+          php -r '$a=json_decode(file_get_contents("php/audit.json"),true); $n=count($a["advisories"]??[]); if($n){fwrite(STDERR,"Composer audit advisories: $n\n"); exit(1);}'
+      - name: Upload exact runtime
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: node-dependencies
-          path: out/node-dependencies.tar.gz
+          name: mviringo-php-runtime-13-29
+          path: out/mviringo-php-runtime-laravel-13.29.0.tar.gz
           retention-days: 1
           if-no-files-found: error
           compression-level: 0
@@ -37,11 +39,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: node-dependency-verification
+          name: mviringo-php-runtime-13-29-verification
           path: |
             out/SHA256SUMS
-            out/dependencies/node/package.json
-            out/dependencies/node/package-lock.json
-            out/dependencies/node/audit.json
-            out/dependencies/node/node-version.txt
+            out/php/composer.json
+            out/php/composer.lock
+            out/php/dependency-versions.json
+            out/php/audit.json
+            out/php/versions.txt
           retention-days: 1
