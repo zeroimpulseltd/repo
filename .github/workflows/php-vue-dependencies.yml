@@ -20,7 +20,7 @@ jobs:
           apt-get -y --no-install-recommends install php8.4-cli php8.4-mysql php8.4-sqlite3 php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip php8.4-gd composer unzip ca-certificates nodejs npm git
           mkdir -p /out/dependencies/php /out/dependencies/node
           cat > /out/dependencies/php/composer.json <<'JSON'
-          {"name":"build/php-runtime","type":"project","require":{"php":"^8.3","laravel/framework":"13.29.1","inertiajs/inertia-laravel":"^3.3.4"},"config":{"platform":{"php":"8.3.0"},"allow-plugins":false,"sort-packages":true},"minimum-stability":"stable","prefer-stable":true}
+          {"name":"build/php-runtime","type":"project","require":{"php":"^8.3","laravel/framework":"^13.29","inertiajs/inertia-laravel":"^2.0"},"config":{"platform":{"php":"8.3.0"},"allow-plugins":false,"sort-packages":true},"minimum-stability":"stable","prefer-stable":true}
           JSON
           cd /out/dependencies/php
           COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --prefer-dist --no-scripts --no-interaction --optimize-autoloader
@@ -29,7 +29,7 @@ jobs:
           cd /out
           tar czf php-dependencies.tar.gz dependencies/php
           cat > /out/dependencies/node/package.json <<'JSON'
-          {"name":"public-web-build-dependencies","private":true,"type":"module","dependencies":{"vue":"^3.5.0","vue-router":"^4.5.0","@inertiajs/vue3":"^2.0.0","react":"18.3.1","react-dom":"18.3.1","react-router-dom":"^6.30.1","lucide-react":"0.439.0","lucide-vue-next":"0.439.0"},"devDependencies":{"vite":"^7.0.0","@vitejs/plugin-vue":"^6.0.0","@vitejs/plugin-react":"^5.0.0","typescript":"^5.9.0","vue-tsc":"^3.0.0","laravel-vite-plugin":"^2.0.0","@babel/core":"^7.28.0","@babel/plugin-transform-react-jsx":"^7.27.1","@babel/parser":"^7.28.0","@babel/traverse":"^7.28.0","@babel/generator":"^7.28.0","@vue/babel-plugin-jsx":"^1.5.0"}}
+          {"name":"public-web-build-dependencies","private":true,"type":"module","dependencies":{"vue":"^3.5.0","vue-router":"^4.5.0","@inertiajs/vue3":"^2.0.0","react":"18.3.1","react-dom":"18.3.1","react-router-dom":"^6.30.1","lucide-react":"0.439.0","lucide-vue-next":"0.439.0"},"devDependencies":{"vite":"^6.1.0","@vitejs/plugin-vue":"^5.2.0","@vitejs/plugin-react":"^4.3.0","typescript":"^5.8.0","vue-tsc":"^2.2.0","laravel-vite-plugin":"^1.2.0","@babel/core":"^7.27.0","@babel/plugin-transform-react-jsx":"^7.27.1","@babel/parser":"^7.27.0","@babel/traverse":"^7.27.0","@babel/generator":"^7.27.0","@vue/babel-plugin-jsx":"^1.4.0"}}
           JSON
           cd /out/dependencies/node
           npm install --ignore-scripts --no-fund --no-audit
