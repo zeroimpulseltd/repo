@@ -22,17 +22,19 @@ jobs:
           apt-get -y --no-install-recommends --download-only install $packages
           mkdir -p /out/native-debs
           cp /var/cache/apt/archives/*.deb /out/native-debs/
+          cd /out
+          tar czf native-test-runtime-debs.tar.gz native-debs
           apt-get -y --no-install-recommends install $packages nodejs npm git
           mkdir -p /out/dependencies/php /out/dependencies/node
           cat > /out/dependencies/php/composer.json <<'JSON'
-          {"name":"build/php-runtime","type":"project","require":{"php":"^8.3","laravel/framework":"13.29.0","inertiajs/inertia-laravel":"^3.3.4"},"config":{"platform":{"php":"8.3.0"},"allow-plugins":false,"sort-packages":true},"minimum-stability":"stable","prefer-stable":true}
+          {"name":"build/php-runtime","type":"project","require":{"php":"^8.3","laravel/framework":"13.29.1","inertiajs/inertia-laravel":"^3.3.4"},"config":{"platform":{"php":"8.3.0"},"allow-plugins":false,"sort-packages":true},"minimum-stability":"stable","prefer-stable":true}
           JSON
           cd /out/dependencies/php
           COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --prefer-dist --no-scripts --no-interaction --optimize-autoloader
           composer show --format=json > dependency-versions.json
           composer audit --no-dev --format=json > audit.json || { cat audit.json; exit 1; }
           cat > /out/dependencies/node/package.json <<'JSON'
-          {"name":"public-web-build-dependencies","private":true,"type":"module","dependencies":{"vue":"^3.5.0","@inertiajs/vue3":"^3.0.0","react":"18.3.1","react-dom":"18.3.1","react-router-dom":"^6.30.1","lucide-react":"0.439.0"},"devDependencies":{"vite":"^7.0.0","@vitejs/plugin-vue":"^6.0.0","@vitejs/plugin-react":"^5.0.0","typescript":"^5.9.0","vue-tsc":"^3.0.0","laravel-vite-plugin":"^2.0.0"}}
+          {"name":"public-web-build-dependencies","private":true,"type":"module","dependencies":{"vue":"^3.5.0","@inertiajs/vue3":"^3.0.0","react":"18.3.1","react-dom":"18.3.1","react-router-dom":"^6.30.1","lucide-react":"0.439.0","lucide-vue-next":"0.439.0"},"devDependencies":{"vite":"^7.0.0","@vitejs/plugin-vue":"^6.0.0","@vitejs/plugin-react":"^5.0.0","typescript":"^5.9.0","vue-tsc":"^3.0.0","laravel-vite-plugin":"^2.0.0","@babel/core":"^7.28.0","@babel/plugin-transform-react-jsx":"^7.27.1","@babel/parser":"^7.28.0","@babel/traverse":"^7.28.0","@babel/generator":"^7.28.0"}}
           JSON
           cd /out/dependencies/node
           npm install --ignore-scripts --no-fund --no-audit
@@ -41,25 +43,26 @@ jobs:
           php --version > /out/php-version.txt
           cd /out
           tar czf public-web-dependencies.tar.gz dependencies
-          tar czf native-test-runtime-debs.tar.gz native-debs
           sha256sum public-web-dependencies.tar.gz native-test-runtime-debs.tar.gz > SHA256SUMS
           SCRIPT
           docker run --rm -v "$PWD/out:/out" debian:trixie-slim bash /out/build.sh
       - name: Upload runtime dependencies
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: public-web-dependencies
           path: out/public-web-dependencies.tar.gz
           retention-days: 1
-          if-no-files-found: error
+          if-no-files-found: warn
           compression-level: 0
       - name: Upload isolated database and PHP tools
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: native-test-runtime
           path: out/native-test-runtime-debs.tar.gz
           retention-days: 1
-          if-no-files-found: error
+          if-no-files-found: warn
           compression-level: 0
       - name: Upload verification metadata
         if: always()
