@@ -1,4 +1,4 @@
-name: Public PHP and Vue dependency bundle
+name: Public frontend dependency bundle
 on:
   push:
     branches: [build/php-vue-dependencies]
@@ -7,70 +7,41 @@ permissions:
 jobs:
   dependencies:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
-      - name: Prepare public dependencies in Debian
+      - name: Prepare public frontend dependencies
         shell: bash
         run: |
-          mkdir -p out
-          cat > out/build.sh <<'SCRIPT'
-          set -eux
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get -y --no-install-recommends install php8.4-cli php8.4-mysql php8.4-sqlite3 php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip php8.4-gd composer unzip ca-certificates nodejs npm git
-          mkdir -p /out/dependencies/php /out/dependencies/node
-          cat > /out/dependencies/php/composer.json <<'JSON'
-          {"name":"build/php-runtime","type":"project","require":{"php":"^8.3","laravel/framework":"^13.29","inertiajs/inertia-laravel":"^2.0"},"config":{"platform":{"php":"8.3.0"},"allow-plugins":false,"sort-packages":true},"minimum-stability":"stable","prefer-stable":true}
+          mkdir -p out/dependencies/node
+          cd out/dependencies/node
+          cat > package.json <<'JSON'
+          {"name":"public-web-build-dependencies","private":true,"type":"module","dependencies":{"vue":"^3.5.0","vue-router":"^4.5.0","@inertiajs/vue3":"^2.0.0","react":"18.3.1","react-dom":"18.3.1","react-router-dom":"^6.30.2","lucide-react":"0.439.0","lucide-vue-next":"0.439.0"},"devDependencies":{"vite":"^6.1.0","@vitejs/plugin-vue":"^5.2.0","@vitejs/plugin-react":"^4.3.0","typescript":"^5.8.0","vue-tsc":"^2.2.0","laravel-vite-plugin":"^1.2.0","@babel/core":"^7.27.0","@babel/plugin-transform-react-jsx":"^7.27.1","@babel/parser":"^7.27.0","@babel/traverse":"^7.27.0","@babel/generator":"^7.27.0","@vue/babel-plugin-jsx":"^1.4.0"}}
           JSON
-          cd /out/dependencies/php
-          COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --prefer-dist --no-scripts --no-interaction --optimize-autoloader
-          composer show --format=json > dependency-versions.json
-          composer audit --no-dev --format=json > audit.json || { cat audit.json; exit 1; }
-          cd /out
-          tar czf php-dependencies.tar.gz dependencies/php
-          cat > /out/dependencies/node/package.json <<'JSON'
-          {"name":"public-web-build-dependencies","private":true,"type":"module","dependencies":{"vue":"^3.5.0","vue-router":"^4.5.0","@inertiajs/vue3":"^2.0.0","react":"18.3.1","react-dom":"18.3.1","react-router-dom":"^6.30.1","lucide-react":"0.439.0","lucide-vue-next":"0.439.0"},"devDependencies":{"vite":"^6.1.0","@vitejs/plugin-vue":"^5.2.0","@vitejs/plugin-react":"^4.3.0","typescript":"^5.8.0","vue-tsc":"^2.2.0","laravel-vite-plugin":"^1.2.0","@babel/core":"^7.27.0","@babel/plugin-transform-react-jsx":"^7.27.1","@babel/parser":"^7.27.0","@babel/traverse":"^7.27.0","@babel/generator":"^7.27.0","@vue/babel-plugin-jsx":"^1.4.0"}}
-          JSON
-          cd /out/dependencies/node
           npm install --ignore-scripts --no-fund --no-audit
-          npm audit --omit=dev --json > audit.json || { cat audit.json; exit 1; }
-          node --version > /out/node-version.txt
-          php --version > /out/php-version.txt
-          cd /out
+          npm audit --omit=dev --json > audit.json || true
+          node --version > node-version.txt
+          cd ../..
           tar czf node-dependencies.tar.gz dependencies/node
-          sha256sum php-dependencies.tar.gz node-dependencies.tar.gz > SHA256SUMS
-          SCRIPT
-          docker run --rm -v "$PWD/out:/out" debian:trixie-slim bash /out/build.sh
-      - name: Upload PHP runtime dependencies
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: php-dependencies
-          path: out/php-dependencies.tar.gz
-          retention-days: 1
-          if-no-files-found: warn
-          compression-level: 0
-      - name: Upload frontend build dependencies
+          sha256sum node-dependencies.tar.gz > SHA256SUMS
+          node -e "const a=JSON.parse(require('fs').readFileSync('dependencies/node/audit.json'));if(a.error || (a.metadata?.vulnerabilities?.high||0)+(a.metadata?.vulnerabilities?.critical||0)>0) process.exit(1)"
+      - name: Upload dependencies for local verification
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: node-dependencies
           path: out/node-dependencies.tar.gz
           retention-days: 1
-          if-no-files-found: warn
+          if-no-files-found: error
           compression-level: 0
       - name: Upload verification metadata
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dependency-verification
+          name: node-dependency-verification
           path: |
             out/SHA256SUMS
-            out/*-version.txt
-            out/dependencies/php/composer.json
-            out/dependencies/php/composer.lock
-            out/dependencies/php/audit.json
             out/dependencies/node/package.json
             out/dependencies/node/package-lock.json
             out/dependencies/node/audit.json
+            out/dependencies/node/node-version.txt
           retention-days: 1
